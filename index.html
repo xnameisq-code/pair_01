@@ -1670,6 +1670,11 @@ async function saveAsImage() {
   const saveStyle = document.createElement('style');
   saveStyle.id = '__save_style__';
   saveStyle.textContent = `
+// ── 3) hover/focus 배경·테두리 완전 투명 처리 CSS 주입 ──
+  const saveStyle = document.createElement('style');
+  saveStyle.id = '__save_style__';
+  saveStyle.textContent = `
+    /* 기존 hover/focus 스타일 제거 */
     #canvas-area .item-content,
     #canvas-area .item-content:hover,
     #canvas-area #title-text:hover,
@@ -1681,11 +1686,23 @@ async function saveAsImage() {
       outline: none !important;
       box-shadow: none !important;
     }
+    
+    /* 🔥 핵심: 복붙으로 딸려온 하위 태그(span 등)의 배경색 강제 투명화 🔥 */
+    #canvas-area #title-text *,
+    #canvas-area #dday-display *,
+    #canvas-area #hashtag-area *,
+    #canvas-area .name-input *,
+    #canvas-area .item-content *,
+    #canvas-area .item-tag *,
+    #canvas-area .msg-bubble * {
+      background-color: transparent !important;
+    }
+
+    /* 말풍선 본래 색상은 유지 */
     #canvas-area .left-bubble  { background: #5b9bd5 !important; }
     #canvas-area .right-bubble { background: #e0e0e0 !important; }
     #canvas-area .heart-icon::after { display: none !important; }
   `;
-  document.head.appendChild(saveStyle);
 
   // ── 4) UI 전용 요소 숨기기 ──
   const hideSelectors = ['.char-size-slider','#pair-img-size-slider','.upload-placeholder','.item-del-btn'];
@@ -1768,6 +1785,14 @@ document.addEventListener('click', e => {
       !toggle.contains(e.target) &&
       !document.getElementById('emoji-popup').contains(e.target)) {
     panel.classList.remove('open');
+  }
+});
+// ===== 붙여넣기 시 서식(배경색 등) 제거하고 순수 텍스트만 입력 =====
+document.addEventListener('paste', function(e) {
+  if (e.target && e.target.isContentEditable) {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, text);
   }
 });
 </script>
