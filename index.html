@@ -303,12 +303,16 @@
     overflow: hidden;
     border-radius: 50%;
   }
+  /* 캐릭터 이미지 — 원본 비율 유지, 잘리지 않음, 드래그로 위치 조절 */
   .char-circle img {
     position: absolute;
     max-width: none;
+    width: auto;
+    height: auto;
     cursor: grab;
     user-select: none;
     -webkit-user-drag: none;
+    transform-origin: center center;
   }
   .char-circle .upload-placeholder {
     display: flex;
@@ -485,13 +489,16 @@
     overflow: hidden;
     border-radius: 16px;
   }
+  /* 중앙 페어 이미지 — 원본 비율 유지, 잘리지 않음 */
   .pair-img-frame img {
     position: absolute;
     max-width: none;
+    width: auto;
+    height: auto;
     cursor: grab;
     user-select: none;
     -webkit-user-drag: none;
-    object-fit: cover;
+    transform-origin: center center;
   }
   .pair-img-frame .upload-placeholder {
     display: flex;
@@ -876,14 +883,42 @@
       <p style="font-size:11px; color:#999; margin-top:4px">※ 이미지를 드래그하여 위치 조절</p>
     </div>
     <div class="panel-section">
-      <h3>❤ 하트 색상</h3>
+      <h3>❤ 하트 색상 — 페어 A</h3>
+      <p style="font-size:11px;color:#888;margin-bottom:8px">하트를 클릭하거나 아래에서 직접 색상 지정</p>
       <div class="ctrl-row">
-        <label>하트 색상</label>
-        <input type="color" value="#f48fb1" oninput="setCSSVar('--heart-color', this.value); syncHex('hex-heart', this.value)">
-        <input type="text" id="hex-heart" value="#f48fb1" placeholder="#hex" style="width:80px; font-size:12px; font-family:monospace" onchange="setCSSVar('--heart-color', this.value)">
+        <label>♥ 1번째</label>
+        <input type="color" value="#f48fb1" oninput="setHeartColor('a',1,this.value)">
+        <input type="text" placeholder="#hex" style="width:80px;font-size:12px;font-family:monospace" onchange="setHeartColor('a',1,this.value)">
       </div>
-      <p style="font-size:11px; color:#888;">이미지에서 색상 추출: 이미지 클릭 후 색상 적용</p>
-      <button class="upload-btn" style="background: linear-gradient(135deg,#e91e63,#f48fb1); margin-top:6px" onclick="activateEyedropper()">🔍 화면에서 색상 추출 (Eye Dropper)</button>
+      <div class="ctrl-row">
+        <label>♥ 2번째</label>
+        <input type="color" value="#f48fb1" oninput="setHeartColor('a',2,this.value)">
+        <input type="text" placeholder="#hex" style="width:80px;font-size:12px;font-family:monospace" onchange="setHeartColor('a',2,this.value)">
+      </div>
+      <div class="ctrl-row">
+        <label>♥ 3번째</label>
+        <input type="color" value="#f48fb1" oninput="setHeartColor('a',3,this.value)">
+        <input type="text" placeholder="#hex" style="width:80px;font-size:12px;font-family:monospace" onchange="setHeartColor('a',3,this.value)">
+      </div>
+      <button class="upload-btn" style="background:linear-gradient(135deg,#e91e63,#f48fb1);margin-top:6px" onclick="activateEyedropper()">🔍 Eye Dropper로 색상 추출</button>
+    </div>
+    <div class="panel-section">
+      <h3>❤ 하트 색상 — 페어 B</h3>
+      <div class="ctrl-row">
+        <label>♥ 1번째</label>
+        <input type="color" value="#f48fb1" oninput="setHeartColor('b',1,this.value)">
+        <input type="text" placeholder="#hex" style="width:80px;font-size:12px;font-family:monospace" onchange="setHeartColor('b',1,this.value)">
+      </div>
+      <div class="ctrl-row">
+        <label>♥ 2번째</label>
+        <input type="color" value="#f48fb1" oninput="setHeartColor('b',2,this.value)">
+        <input type="text" placeholder="#hex" style="width:80px;font-size:12px;font-family:monospace" onchange="setHeartColor('b',2,this.value)">
+      </div>
+      <div class="ctrl-row">
+        <label>♥ 3번째</label>
+        <input type="color" value="#f48fb1" oninput="setHeartColor('b',3,this.value)">
+        <input type="text" placeholder="#hex" style="width:80px;font-size:12px;font-family:monospace" onchange="setHeartColor('b',3,this.value)">
+      </div>
     </div>
     <div class="panel-section">
       <h3>📅 디데이 설정</h3>
@@ -1000,9 +1035,9 @@
             <span class="name-input" contenteditable="true" spellcheck="false">이름 입력</span>
           </div>
           <div class="hearts-row" id="hearts-a">
-            <span class="heart-icon">♥</span>
-            <span class="heart-icon">♥</span>
-            <span class="heart-icon">♥</span>
+            <span class="heart-icon" id="heart-a-1" onclick="openHeartPicker('a',1)" style="color:#f48fb1">♥</span>
+            <span class="heart-icon" id="heart-a-2" onclick="openHeartPicker('a',2)" style="color:#f48fb1">♥</span>
+            <span class="heart-icon" id="heart-a-3" onclick="openHeartPicker('a',3)" style="color:#f48fb1">♥</span>
           </div>
           <div class="info-box" id="info-box-a">
             <div class="info-item">
@@ -1073,9 +1108,9 @@
             <span class="name-input name-b" contenteditable="true" spellcheck="false">이름 입력</span>
           </div>
           <div class="hearts-row" id="hearts-b">
-            <span class="heart-icon">♥</span>
-            <span class="heart-icon">♥</span>
-            <span class="heart-icon">♥</span>
+            <span class="heart-icon" id="heart-b-1" onclick="openHeartPicker('b',1)" style="color:#f48fb1">♥</span>
+            <span class="heart-icon" id="heart-b-2" onclick="openHeartPicker('b',2)" style="color:#f48fb1">♥</span>
+            <span class="heart-icon" id="heart-b-3" onclick="openHeartPicker('b',3)" style="color:#f48fb1">♥</span>
           </div>
           <div class="info-box box-b" id="info-box-b">
             <div class="info-item">
@@ -1112,6 +1147,22 @@
   <div id="emoji-popup-grid" style="display:flex; flex-wrap:wrap; gap:6px; max-height:240px; overflow-y:auto;"></div>
 </div>
 <div id="emoji-overlay" onclick="closeEmojiPopup()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:1999;"></div>
+
+<!-- 하트 개별 컬러 팝업 -->
+<div id="heart-color-popup" style="display:none; position:fixed; z-index:2100; background:#fff; border-radius:14px; padding:16px; box-shadow:0 6px 30px rgba(0,0,0,0.2); min-width:200px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+    <span id="heart-popup-label" style="font-size:13px; font-weight:700; font-family:'Gowun Dodum',sans-serif; color:#7b1fa2;">♥ 색상 변경</span>
+    <button onclick="closeHeartPicker()" style="background:none; border:none; font-size:16px; cursor:pointer;">✕</button>
+  </div>
+  <input type="color" id="heart-popup-color" value="#f48fb1"
+    style="width:100%; height:44px; border:none; border-radius:8px; cursor:pointer; margin-bottom:8px;"
+    oninput="applyHeartPickerColor(this.value)">
+  <input type="text" id="heart-popup-hex" placeholder="#f48fb1"
+    style="width:100%; padding:6px 10px; border:1.5px solid #ddd; border-radius:8px; font-size:13px; font-family:monospace; outline:none;"
+    oninput="applyHeartPickerColor(this.value)">
+  <button onclick="activateEyedropperForHeart()" style="width:100%; margin-top:8px; padding:7px; background:linear-gradient(135deg,#e91e63,#f48fb1); color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:12px; font-family:'Gowun Dodum',sans-serif;">🔍 Eye Dropper</button>
+</div>
+<div id="heart-popup-overlay" onclick="closeHeartPicker()" style="display:none; position:fixed; inset:0; z-index:2099;"></div>
 
 <script>
 // ===== 유틸 =====
@@ -1225,11 +1276,28 @@ function handleCharImg(event, side) {
   cont.innerHTML = '';
   const img = document.createElement('img');
   img.src = url;
-  img.style.width = '100%';
-  img.style.height = '100%';
-  img.style.objectFit = 'cover';
   img.style.transform = 'translate(0px, 0px)';
   img.dataset.scale = '100';
+  // 이미지 로드 후 원본 비율 유지하며 컨테이너에 맞게 초기 크기 설정
+  img.onload = () => {
+    const contW = cont.offsetWidth || 260;
+    const contH = cont.offsetHeight || 260;
+    const natW = img.naturalWidth;
+    const natH = img.naturalHeight;
+    // 원본 비율 유지하면서 컨테이너 안에 들어오는 최대 크기
+    const scale = Math.min(contW / natW, contH / natH);
+    const initW = Math.round(natW * scale);
+    const initH = Math.round(natH * scale);
+    img.style.width = initW + 'px';
+    img.style.height = initH + 'px';
+    // 중앙 정렬을 위해 offset 계산
+    const offsetX = Math.round((contW - initW) / 2);
+    const offsetY = Math.round((contH - initH) / 2);
+    img.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+    img.dataset.baseW = initW;
+    img.dataset.baseH = initH;
+    img.dataset.scale = '100';
+  };
   cont.appendChild(img);
   makeDraggable(img, cont);
 
@@ -1238,7 +1306,6 @@ function handleCharImg(event, side) {
   const slider = document.getElementById('char-size-slider-' + side);
   slider.style.display = 'block';
   slider.value = 100;
-  // 패널 슬라이더도 sync
   const panelSlider = side === 'a'
     ? document.querySelector('#tab-charA input[type=range]')
     : document.querySelector('#tab-charB input[type=range]');
@@ -1248,15 +1315,19 @@ function setCharImgSize(side, val) {
   const cont = document.getElementById('char-img-cont-' + side);
   const img = cont.querySelector('img');
   if (!img) return;
-  const pct = parseInt(val);
-  const pos = img.style.transform;
-  img.style.width = pct + '%';
-  img.style.height = pct + '%';
-  img.style.transform = pos;
+  const pct = parseInt(val) / 100;
+  const baseW = parseFloat(img.dataset.baseW) || cont.offsetWidth;
+  const baseH = parseFloat(img.dataset.baseH) || cont.offsetHeight;
+  const newW = Math.round(baseW * pct);
+  const newH = Math.round(baseH * pct);
+  // 현재 위치 유지하며 크기만 변경
+  const curTransform = img.style.transform;
+  img.style.width = newW + 'px';
+  img.style.height = newH + 'px';
+  img.style.transform = curTransform;
   const labelId = side === 'a' ? 'char-a-size-val' : 'char-b-size-val';
   const el = document.getElementById(labelId);
   if (el) el.textContent = val + '%';
-  // Sync inline slider
   const inlineSlider = document.getElementById('char-size-slider-' + side);
   if (inlineSlider) inlineSlider.value = val;
 }
@@ -1272,13 +1343,27 @@ function handlePairImg(event) {
   cont.innerHTML = '';
   const img = document.createElement('img');
   img.src = url;
-  img.style.width = '100%';
-  img.style.height = '100%';
-  img.style.objectFit = 'cover';
   img.style.transform = 'translate(0px, 0px)';
+  img.onload = () => {
+    const contW = cont.offsetWidth || 520;
+    const contH = cont.offsetHeight || 347;
+    const natW = img.naturalWidth;
+    const natH = img.naturalHeight;
+    const scale = Math.min(contW / natW, contH / natH);
+    const initW = Math.round(natW * scale);
+    const initH = Math.round(natH * scale);
+    img.style.width = initW + 'px';
+    img.style.height = initH + 'px';
+    const offsetX = Math.round((contW - initW) / 2);
+    const offsetY = Math.round((contH - initH) / 2);
+    img.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+    img.dataset.baseW = initW;
+    img.dataset.baseH = initH;
+    img.dataset.scale = '100';
+  };
   cont.appendChild(img);
   makeDraggable(img, cont);
-  document.getElementById('pair-img-frame').onclick = null; // 업로드 후 클릭 비활성
+  document.getElementById('pair-img-frame').onclick = null;
   const slider = document.getElementById('pair-img-size-slider');
   slider.style.display = 'block';
   slider.value = 100;
@@ -1287,9 +1372,13 @@ function setPairImgSize(val) {
   const cont = document.getElementById('pair-img-cont');
   const img = cont.querySelector('img');
   if (!img) return;
-  const pct = parseInt(val);
-  img.style.width = pct + '%';
-  img.style.height = pct + '%';
+  const pct = parseInt(val) / 100;
+  const baseW = parseFloat(img.dataset.baseW) || cont.offsetWidth;
+  const baseH = parseFloat(img.dataset.baseH) || cont.offsetHeight;
+  const curTransform = img.style.transform;
+  img.style.width = Math.round(baseW * pct) + 'px';
+  img.style.height = Math.round(baseH * pct) + 'px';
+  img.style.transform = curTransform;
   const el = document.getElementById('pair-img-sz');
   if (el) el.textContent = val + '%';
   document.getElementById('pair-img-size-slider').value = val;
@@ -1391,6 +1480,89 @@ function buildPanelEmojiGrid(gridId, side) {
 }
 buildPanelEmojiGrid('emoji-grid-a', 'a');
 buildPanelEmojiGrid('emoji-grid-b', 'b');
+
+// ===== 하트 개별 색상 =====
+let _heartTarget = null; // { side, idx }
+
+function setHeartColor(side, idx, color) {
+  const el = document.getElementById(`heart-${side}-${idx}`);
+  if (el) el.style.color = color;
+  // 패널 color input도 sync
+  const inputs = document.querySelectorAll(`#tab-center input[type=color]`);
+  // side a: 0,1,2 / side b: 3,4,5 순서 (패널 순서대로)
+  const offset = side === 'a' ? 0 : 3;
+  const target = inputs[offset + idx - 1];
+  if (target && target.value !== color) target.value = color;
+}
+
+function openHeartPicker(side, idx) {
+  _heartTarget = { side, idx };
+  const el = document.getElementById(`heart-${side}-${idx}`);
+  const curColor = el ? el.style.color || '#f48fb1' : '#f48fb1';
+  // hex 변환
+  const hex = colorToHex(curColor);
+  document.getElementById('heart-popup-color').value = hex;
+  document.getElementById('heart-popup-hex').value = hex;
+  document.getElementById('heart-popup-label').textContent =
+    `♥ ${side.toUpperCase()} ${idx}번 색상 변경`;
+  // 하트 위치 근처에 팝업 표시
+  const rect = el.getBoundingClientRect();
+  const popup = document.getElementById('heart-color-popup');
+  popup.style.display = 'block';
+  let top = rect.bottom + 8;
+  let left = rect.left;
+  // 화면 밖으로 나가지 않도록
+  if (left + 210 > window.innerWidth) left = window.innerWidth - 220;
+  if (top + 180 > window.innerHeight) top = rect.top - 190;
+  popup.style.top = top + 'px';
+  popup.style.left = left + 'px';
+  document.getElementById('heart-popup-overlay').style.display = 'block';
+}
+
+function closeHeartPicker() {
+  document.getElementById('heart-color-popup').style.display = 'none';
+  document.getElementById('heart-popup-overlay').style.display = 'none';
+  _heartTarget = null;
+}
+
+function applyHeartPickerColor(val) {
+  if (!_heartTarget) return;
+  if (!/^#[0-9a-fA-F]{3,6}$/.test(val) && !CSS.supports('color', val)) return;
+  const hex = colorToHex(val);
+  setHeartColor(_heartTarget.side, _heartTarget.idx, hex);
+  // hex input과 color input 동기화
+  const hexInput = document.getElementById('heart-popup-hex');
+  const colorInput = document.getElementById('heart-popup-color');
+  if (hexInput && hexInput.value !== hex) hexInput.value = hex;
+  if (colorInput && colorInput.value !== hex) { try { colorInput.value = hex; } catch(e){} }
+}
+
+async function activateEyedropperForHeart() {
+  if (!window.EyeDropper) {
+    alert('이 브라우저는 Eye Dropper를 지원하지 않습니다.\n색상 코드를 직접 입력해 주세요.');
+    return;
+  }
+  try {
+    const ed = new EyeDropper();
+    const result = await ed.open();
+    applyHeartPickerColor(result.sRGBHex);
+  } catch(e) {}
+}
+
+// rgb(r,g,b) 또는 #hex 문자열을 #rrggbb 로 변환
+function colorToHex(color) {
+  if (!color) return '#f48fb1';
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) return color.toLowerCase();
+  if (/^#[0-9a-fA-F]{3}$/.test(color)) {
+    return '#' + color[1]+color[1]+color[2]+color[2]+color[3]+color[3];
+  }
+  // rgb(r,g,b) 처리
+  const m = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (m) {
+    return '#' + [m[1],m[2],m[3]].map(n => parseInt(n).toString(16).padStart(2,'0')).join('');
+  }
+  return color;
+}
 
 // ===== 정보 항목 추가/삭제 =====
 function addInfoItem(side) {
