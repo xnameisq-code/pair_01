@@ -266,6 +266,11 @@
   }
   #title-text:hover, #title-text:focus { background: rgba(255,255,255,0.4); }
 
+  /* 저장 시 흔적 방지 — contenteditable 기본 outline 제거 */
+  [contenteditable] { outline: none; }
+  [contenteditable]:hover { background: transparent; }
+  [contenteditable]:focus { background: rgba(255,255,255,0.4); }
+
   /* ===== 3열 레이아웃 ===== */
   .three-col {
     display: grid;
@@ -1639,45 +1644,32 @@ async function saveAsImage() {
   // 포커스 해제
   if (document.activeElement) document.activeElement.blur();
 
-  // ── 저장 전: 캔버스 안 UI 전용 요소 숨기기 ──
+  const canvasEl = document.getElementById('canvas-area');
+
+  // ── 1) contenteditable 전부 임시 해제 (hover/focus 테두리·배경 원천 차단) ──
+  const editables = canvasEl.querySelectorAll('[contenteditable]');
+  editables.forEach(el => el.removeAttribute('contenteditable'));
+
+  // ── 2) 캔버스 안 UI 전용 요소 숨기기 ──
   const hideSelectors = [
-    '.char-size-slider',        // 캐릭터 이미지 크기 슬라이더
-    '#pair-img-size-slider',    // 중앙 이미지 크기 슬라이더
-    '.upload-placeholder',      // 이미지 없을 때 업로드 안내문
-    '.item-del-btn',            // 항목 삭제 버튼
+    '.char-size-slider',
+    '#pair-img-size-slider',
+    '.upload-placeholder',
+    '.item-del-btn',
   ];
   const hiddenEls = [];
   hideSelectors.forEach(sel => {
-    document.querySelectorAll(`#canvas-area ${sel}`).forEach(el => {
-      if (el.style.display !== 'none') {
-        el.dataset.prevDisplay = el.style.display || '';
-        el.style.display = 'none';
-        hiddenEls.push(el);
-      }
+    canvasEl.querySelectorAll(sel).forEach(el => {
+      hiddenEls.push({ el, prev: el.style.display });
+      el.style.display = 'none';
     });
   });
 
-  // contenteditable hover/focus 배경 끄기
-  const styleTag = document.createElement('style');
-  styleTag.id = 'save-override';
-  styleTag.textContent = `
-    #canvas-area [contenteditable]:hover,
-    #canvas-area [contenteditable]:focus {
-      background: transparent !important;
-      border-color: transparent !important;
-      outline: none !important;
-    }
-    #canvas-area .heart-icon::after { display: none !important; }
-  `;
-  document.head.appendChild(styleTag);
-
-  // 한 프레임 기다려서 DOM 반영
+  // ── 3) 두 프레임 기다려 DOM 완전 반영 ──
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   try {
-    const canvas = document.getElementById('canvas-area');
-
-    const result = await html2canvas(canvas, {
+    const result = await html2canvas(canvasEl, {
       scale: 1,
       useCORS: true,
       allowTaint: true,
@@ -1695,13 +1687,11 @@ async function saveAsImage() {
     alert('저장 중 오류가 발생했습니다.');
     console.error(err);
   } finally {
-    // ── 저장 후: 숨긴 요소 복원 ──
-    hiddenEls.forEach(el => {
-      el.style.display = el.dataset.prevDisplay || '';
-      delete el.dataset.prevDisplay;
-    });
-    const override = document.getElementById('save-override');
-    if (override) override.remove();
+    // ── 4) contenteditable 복원 ──
+    editables.forEach(el => el.setAttribute('contenteditable', 'true'));
+
+    // ── 5) 숨긴 요소 복원 ──
+    hiddenEls.forEach(({ el, prev }) => { el.style.display = prev; });
 
     btn.textContent = original;
     btn.disabled = false;
