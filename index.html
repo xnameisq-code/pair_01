@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lavishly+Yours&family=Playwrite+England+SemiJoined&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Gowun+Dodum&family=Noto+Serif+KR&family=Hahmlet:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root {
     --bg-color: #c8d8f0;
@@ -716,7 +717,7 @@
 <button id="panel-toggle" onclick="togglePanel()">⚙ 커스텀 편집</button>
 
 <!-- 저장 버튼 -->
-<button id="save-btn" onclick="saveAsImage()">💾 이미지로 저장</button>
+<button id="save-btn" onclick="saveAsImage()">💾 PNG로 저장</button>
 
 <!-- 숨김 파일 입력들 -->
 <input type="file" id="file-pair-img" class="hidden-file" accept="image/*" onchange="handlePairImg(event)">
@@ -1153,6 +1154,12 @@
 
       </div><!-- /three-col -->
     </div><!-- /canvas-inner -->
+
+    <!-- 제작자 크레딧 -->
+    <div style="position:absolute; bottom:14px; right:20px; font-family:'Gowun Dodum',sans-serif; font-size:12px; color:rgba(80,80,80,0.55); letter-spacing:0.5px; pointer-events:none; z-index:2;">
+      제작 보름 (@2L00D4)
+    </div>
+
   </div><!-- /canvas-area -->
   </div><!-- /canvas-scale-wrap -->
 </div><!-- /preview-wrapper -->
@@ -1623,8 +1630,40 @@ function removeLastMsgBubble() {
   const wraps = area.querySelectorAll('.msg-bubble-wrap');
   if (wraps.length > 0) wraps[wraps.length - 1].remove();
 }
-function saveAsImage() {
-  alert('💡 저장 방법:\n\n브라우저에서 Ctrl+Shift+I (개발자 도구) → 콘솔에서\nhtml2canvas로 저장하거나,\n운영체제 캡처 도구(PrtScr, 스니핑 도구)를\n사용하여 캔버스 영역을 캡처해주세요.\n\n또는 화면 캡처 확장 프로그램을 이용하세요.');
+async function saveAsImage() {
+  const btn = document.getElementById('save-btn');
+  const original = btn.textContent;
+  btn.textContent = '⏳ 저장 중...';
+  btn.disabled = true;
+
+  try {
+    const canvas = document.getElementById('canvas-area');
+
+    // contenteditable 포커스 해제 (커서 깜박임 제거)
+    if (document.activeElement) document.activeElement.blur();
+
+    const result = await html2canvas(canvas, {
+      scale: 1,              // 1800×1200 원본 해상도 그대로
+      useCORS: true,         // 외부 이미지(업로드 파일) 허용
+      allowTaint: true,
+      backgroundColor: null, // 캔버스 배경색 그대로
+      logging: false,
+      width: 1800,
+      height: 1200,
+    });
+
+    // PNG 다운로드
+    const link = document.createElement('a');
+    link.download = '페어틀_' + new Date().toISOString().slice(0,10) + '.png';
+    link.href = result.toDataURL('image/png');
+    link.click();
+  } catch (err) {
+    alert('저장 중 오류가 발생했습니다.\n업로드한 이미지가 있다면 CORS 제한으로 인해 로컬 파일은 정상 캡처될 수 있습니다.');
+    console.error(err);
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
+  }
 }
 
 // ===== 반응형 캔버스 스케일 (1800px 기준) =====
