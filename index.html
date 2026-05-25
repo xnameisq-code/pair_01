@@ -263,6 +263,8 @@
     padding: 4px 8px;
     border-radius: 8px;
     transition: background 0.2s;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
   #title-text:hover, #title-text:focus { background: rgba(255,255,255,0.4); }
 
@@ -459,15 +461,16 @@
     outline: none;
     padding: 3px 6px;
     border-radius: 6px;
-    border: 1px solid transparent;
+    border: none;
     min-height: 22px;
     line-height: var(--line-height);
     letter-spacing: var(--letter-spacing);
     font-family: 'Gowun Dodum', sans-serif;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
   .item-content:hover, .item-content:focus {
-    border-color: #ddd;
-    background: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.5);
   }
 
   /* 항목 삭제 버튼 */
@@ -591,6 +594,8 @@
     font-family: 'Gowun Dodum', sans-serif;
     line-height: var(--line-height);
     letter-spacing: var(--letter-spacing);
+    white-space: pre-wrap;
+    word-break: break-word;
   }
   .msg-bubble.left-bubble {
     background: #5b9bd5;
@@ -615,8 +620,10 @@
     line-height: var(--line-height);
     letter-spacing: var(--letter-spacing);
     font-family: 'Gowun Dodum', sans-serif;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
-  #hashtag-area:hover, #hashtag-area:focus { background: rgba(255,255,255,0.5); }
+  #hashtag-area:hover, #hashtag-area:focus { background: rgba(255,255,255,0.4); }
 
   /* 패널 닫기 버튼 */
   #panel-close {
@@ -1641,16 +1648,51 @@ async function saveAsImage() {
   btn.textContent = '⏳ 저장 중...';
   btn.disabled = true;
 
-  // 포커스 해제
   if (document.activeElement) document.activeElement.blur();
 
   const canvasEl = document.getElementById('canvas-area');
 
-  // ── 1) contenteditable 전부 임시 해제 (hover/focus 테두리·배경 원천 차단) ──
+  // ── 1) contenteditable 전부 임시 해제 ──
   const editables = canvasEl.querySelectorAll('[contenteditable]');
   editables.forEach(el => el.removeAttribute('contenteditable'));
 
-  // ── 2) 캔버스 안 UI 전용 요소 숨기기 ──
+  // ── 2) 저장용 CSS 주입 — hover/focus 배경·border 완전 투명화 ──
+  const saveStyle = document.createElement('style');
+  saveStyle.id = '__save_style__';
+  saveStyle.textContent = `
+    #canvas-area .item-content,
+    #canvas-area .item-content:hover,
+    #canvas-area .item-content:focus,
+    #canvas-area #title-text:hover,
+    #canvas-area #title-text:focus,
+    #canvas-area #dday-display:hover,
+    #canvas-area #dday-display:focus,
+    #canvas-area #hashtag-area:hover,
+    #canvas-area #hashtag-area:focus,
+    #canvas-area .name-input:hover,
+    #canvas-area .name-input:focus,
+    #canvas-area .msg-bubble:hover,
+    #canvas-area .msg-bubble:focus {
+      background: transparent !important;
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    #canvas-area .left-bubble,
+    #canvas-area .left-bubble:hover,
+    #canvas-area .left-bubble:focus {
+      background: #5b9bd5 !important;
+    }
+    #canvas-area .right-bubble,
+    #canvas-area .right-bubble:hover,
+    #canvas-area .right-bubble:focus {
+      background: #e0e0e0 !important;
+    }
+    #canvas-area .heart-icon::after { display: none !important; }
+  `;
+  document.head.appendChild(saveStyle);
+
+  // ── 3) UI 전용 요소 숨기기 ──
   const hideSelectors = [
     '.char-size-slider',
     '#pair-img-size-slider',
@@ -1665,7 +1707,7 @@ async function saveAsImage() {
     });
   });
 
-  // ── 3) 두 프레임 기다려 DOM 완전 반영 ──
+  // ── 4) 두 프레임 대기 ──
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   try {
@@ -1687,11 +1729,11 @@ async function saveAsImage() {
     alert('저장 중 오류가 발생했습니다.');
     console.error(err);
   } finally {
-    // ── 4) contenteditable 복원 ──
+    // ── 5) 전부 복원 ──
     editables.forEach(el => el.setAttribute('contenteditable', 'true'));
-
-    // ── 5) 숨긴 요소 복원 ──
     hiddenEls.forEach(({ el, prev }) => { el.style.display = prev; });
+    const s = document.getElementById('__save_style__');
+    if (s) s.remove();
 
     btn.textContent = original;
     btn.disabled = false;
