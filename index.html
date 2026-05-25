@@ -383,8 +383,27 @@
     cursor: pointer;
     transition: transform 0.2s;
     filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+    position: relative;
   }
-  .heart-icon:hover { transform: scale(1.3); }
+  .heart-icon:hover {
+    transform: scale(1.4);
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.18));
+  }
+  .heart-icon::after {
+    content: '색상';
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    color: #999;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s;
+    font-family: 'Gowun Dodum', sans-serif;
+    pointer-events: none;
+  }
+  .heart-icon:hover::after { opacity: 1; }
 
   /* 정보 박스 */
   .info-box {
@@ -1035,9 +1054,9 @@
             <span class="name-input" contenteditable="true" spellcheck="false">이름 입력</span>
           </div>
           <div class="hearts-row" id="hearts-a">
-            <span class="heart-icon" id="heart-a-1" onclick="openHeartPicker('a',1)" style="color:#f48fb1">♥</span>
-            <span class="heart-icon" id="heart-a-2" onclick="openHeartPicker('a',2)" style="color:#f48fb1">♥</span>
-            <span class="heart-icon" id="heart-a-3" onclick="openHeartPicker('a',3)" style="color:#f48fb1">♥</span>
+            <span class="heart-icon" id="heart-a-1" onclick="openHeartPicker('a',1,event)" style="color:#f48fb1">♥</span>
+            <span class="heart-icon" id="heart-a-2" onclick="openHeartPicker('a',2,event)" style="color:#f48fb1">♥</span>
+            <span class="heart-icon" id="heart-a-3" onclick="openHeartPicker('a',3,event)" style="color:#f48fb1">♥</span>
           </div>
           <div class="info-box" id="info-box-a">
             <div class="info-item">
@@ -1108,9 +1127,9 @@
             <span class="name-input name-b" contenteditable="true" spellcheck="false">이름 입력</span>
           </div>
           <div class="hearts-row" id="hearts-b">
-            <span class="heart-icon" id="heart-b-1" onclick="openHeartPicker('b',1)" style="color:#f48fb1">♥</span>
-            <span class="heart-icon" id="heart-b-2" onclick="openHeartPicker('b',2)" style="color:#f48fb1">♥</span>
-            <span class="heart-icon" id="heart-b-3" onclick="openHeartPicker('b',3)" style="color:#f48fb1">♥</span>
+            <span class="heart-icon" id="heart-b-1" onclick="openHeartPicker('b',1,event)" style="color:#f48fb1">♥</span>
+            <span class="heart-icon" id="heart-b-2" onclick="openHeartPicker('b',2,event)" style="color:#f48fb1">♥</span>
+            <span class="heart-icon" id="heart-b-3" onclick="openHeartPicker('b',3,event)" style="color:#f48fb1">♥</span>
           </div>
           <div class="info-box box-b" id="info-box-b">
             <div class="info-item">
@@ -1149,7 +1168,7 @@
 <div id="emoji-overlay" onclick="closeEmojiPopup()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:1999;"></div>
 
 <!-- 하트 개별 컬러 팝업 -->
-<div id="heart-color-popup" style="display:none; position:fixed; z-index:2100; background:#fff; border-radius:14px; padding:16px; box-shadow:0 6px 30px rgba(0,0,0,0.2); min-width:200px;">
+<div id="heart-color-popup" style="display:none; position:fixed; z-index:2100; background:#fff; border-radius:14px; padding:16px; box-shadow:0 6px 30px rgba(0,0,0,0.2); min-width:200px;" onclick="event.stopPropagation()">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
     <span id="heart-popup-label" style="font-size:13px; font-weight:700; font-family:'Gowun Dodum',sans-serif; color:#7b1fa2;">♥ 색상 변경</span>
     <button onclick="closeHeartPicker()" style="background:none; border:none; font-size:16px; cursor:pointer;">✕</button>
@@ -1495,23 +1514,21 @@ function setHeartColor(side, idx, color) {
   if (target && target.value !== color) target.value = color;
 }
 
-function openHeartPicker(side, idx) {
+function openHeartPicker(side, idx, e) {
+  if (e) e.stopPropagation();
   _heartTarget = { side, idx };
   const el = document.getElementById(`heart-${side}-${idx}`);
   const curColor = el ? el.style.color || '#f48fb1' : '#f48fb1';
-  // hex 변환
   const hex = colorToHex(curColor);
   document.getElementById('heart-popup-color').value = hex;
   document.getElementById('heart-popup-hex').value = hex;
   document.getElementById('heart-popup-label').textContent =
     `♥ ${side.toUpperCase()} ${idx}번 색상 변경`;
-  // 하트 위치 근처에 팝업 표시
   const rect = el.getBoundingClientRect();
   const popup = document.getElementById('heart-color-popup');
   popup.style.display = 'block';
   let top = rect.bottom + 8;
   let left = rect.left;
-  // 화면 밖으로 나가지 않도록
   if (left + 210 > window.innerWidth) left = window.innerWidth - 220;
   if (top + 180 > window.innerHeight) top = rect.top - 190;
   popup.style.top = top + 'px';
