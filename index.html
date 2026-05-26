@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lavishly+Yours&family=Playwrite+England+SemiJoined&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Gowun+Dodum&family=Noto+Serif+KR&family=Hahmlet:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root {
     --bg-color: #c8d8f0;
@@ -1683,7 +1684,7 @@ async function saveAsImage() {
   const editables = canvasEl.querySelectorAll('[contenteditable]');
   editables.forEach(el => el.removeAttribute('contenteditable'));
 
-  // ── 3) UI 요소 숨기기 + is-saving 클래스 ──
+  // ── 3) UI 요소 숨기기 ──
   const hideSelectors = ['.char-size-slider','#pair-img-size-slider','.upload-placeholder','.item-del-btn'];
   const hiddenEls = [];
   hideSelectors.forEach(sel => {
@@ -1692,120 +1693,80 @@ async function saveAsImage() {
       el.style.display = 'none';
     });
   });
+
+  // ── 4) html2canvas가 잘못 렌더하는 속성들 인라인으로 제거 ──
+  //    box-shadow, border 투명값이 레이어 흔적 원인
+  const fixTargets = canvasEl.querySelectorAll(
+    '.info-box, .item-content, #title-text, #dday-display, #hashtag-area, .name-input, .msg-bubble, .messenger-area, .pair-img-frame, .char-circle'
+  );
+  const fixedStyles = [];
+  fixTargets.forEach(el => {
+    fixedStyles.push({
+      el,
+      boxShadow:    el.style.boxShadow,
+      border:       el.style.border,
+      outline:      el.style.outline,
+      background:   el.style.background,
+    });
+    el.style.outline = 'none';
+    // item-content / 편집 요소 hover 배경 제거
+    if (el.classList.contains('item-content') ||
+        el.id === 'title-text' ||
+        el.id === 'dday-display' ||
+        el.id === 'hashtag-area' ||
+        el.classList.contains('name-input')) {
+      el.style.background = 'transparent';
+      el.style.border     = 'none';
+    }
+    // info-box box-shadow 제거 (레이어 흔적 원인)
+    if (el.classList.contains('info-box') ||
+        el.classList.contains('messenger-area')) {
+      el.style.boxShadow = 'none';
+    }
+  });
+
   canvasEl.classList.add('is-saving');
 
-  // ── 4) 두 프레임 대기 ──
+  // ── 5) 두 프레임 대기 ──
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   try {
-    // ── 5) 현재 적용된 스타일시트 전부 수집 ──
-    let cssText = '';
-    for (const sheet of document.styleSheets) {
-      try {
-        for (const rule of sheet.cssRules) cssText += rule.cssText + '\n';
-      } catch(e) {}
-    }
-
-    // ── 6) DOM 클론 ──
-    const clone = canvasEl.cloneNode(true);
-    clone.style.transform = 'none';
-    clone.style.width  = W + 'px';
-    clone.style.height = H + 'px';
-    clone.style.borderRadius = '0';
-    clone.style.boxShadow = 'none';
-    clone.style.overflow = 'hidden';
-
-    // ── 7) 업로드 이미지들을 blob URL → dataURL로 교체 (CORS 우회) ──
-    const imgs = clone.querySelectorAll('img');
-    await Promise.all([...imgs].map(async img => {
-      if (!img.src) return;
-      try {
-        const res  = await fetch(img.src);
-        const blob = await res.blob();
-        await new Promise(resolve => {
-          const reader = new FileReader();
-          reader.onload = e => { img.src = e.target.result; resolve(); };
-          reader.readAsDataURL(blob);
-        });
-      } catch(e) {}
-    }));
-
-    // ── 8) 배경 이미지도 dataURL 교체 ──
-    const bgLayer = clone.querySelector('#bg-img-layer');
-    if (bgLayer) {
-      const bgImg = bgLayer.style.backgroundImage;
-      const urlMatch = bgImg.match(/url\(["']?(.+?)["']?\)/);
-      if (urlMatch) {
-        try {
-          const res  = await fetch(urlMatch[1]);
-          const blob = await res.blob();
-          await new Promise(resolve => {
-            const reader = new FileReader();
-            reader.onload = e => {
-              bgLayer.style.backgroundImage = `url('${e.target.result}')`;
-              resolve();
-            };
-            reader.readAsDataURL(blob);
-          });
-        } catch(e) {}
-      }
-    }
-
-    // ── 9) SVG foreignObject 생성 ──
-    const svgNS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(svgNS, 'svg');
-    svg.setAttribute('xmlns', svgNS);
-    svg.setAttribute('width',  W);
-    svg.setAttribute('height', H);
-
-    // 스타일 삽입
-    const styleEl = document.createElementNS(svgNS, 'style');
-    styleEl.textContent = cssText;
-    svg.appendChild(styleEl);
-
-    const fo = document.createElementNS(svgNS, 'foreignObject');
-    fo.setAttribute('x', '0');
-    fo.setAttribute('y', '0');
-    fo.setAttribute('width',  W);
-    fo.setAttribute('height', H);
-    fo.appendChild(clone);
-    svg.appendChild(fo);
-
-    const svgStr  = new XMLSerializer().serializeToString(svg);
-    const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
-    const svgUrl  = URL.createObjectURL(svgBlob);
-
-    // ── 10) SVG → Canvas → PNG ──
-    await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const c   = document.createElement('canvas');
-        c.width   = W;
-        c.height  = H;
-        const ctx = c.getContext('2d');
-        ctx.drawImage(img, 0, 0, W, H);
-        URL.revokeObjectURL(svgUrl);
-
-        const link = document.createElement('a');
-        link.download = '페어틀_' + new Date().toISOString().slice(0,10) + '.png';
-        link.href = c.toDataURL('image/png');
-        link.click();
-        resolve();
-      };
-      img.onerror = reject;
-      img.src = svgUrl;
+    const result = await html2canvas(canvasEl, {
+      scale: 1,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: null,
+      logging: false,
+      x: 0, y: 0,
+      width: W, height: H,
+      scrollX: 0, scrollY: 0,
+      ignoreElements: el =>
+        el.id === 'control-panel' ||
+        el.id === 'panel-toggle'  ||
+        el.id === 'save-btn',
     });
+
+    const link = document.createElement('a');
+    link.download = '페어틀_' + new Date().toISOString().slice(0,10) + '.png';
+    link.href = result.toDataURL('image/png');
+    link.click();
 
   } catch (err) {
     alert('저장 중 오류가 발생했습니다.\n' + err);
     console.error(err);
   } finally {
-    // ── 11) 전부 복원 ──
+    // ── 6) 전부 복원 ──
     scaleWrap.style.transform       = prevTransform;
     scaleWrap.style.transformOrigin = prevOrigin;
     previewWr.style.minHeight       = prevMinH;
     editables.forEach(el => el.setAttribute('contenteditable', 'true'));
     hiddenEls.forEach(({ el, prev }) => { el.style.display = prev; });
+    fixedStyles.forEach(({ el, boxShadow, border, outline, background }) => {
+      el.style.boxShadow  = boxShadow;
+      el.style.border     = border;
+      el.style.outline    = outline;
+      el.style.background = background;
+    });
     canvasEl.classList.remove('is-saving');
 
     btn.textContent = '💾 PNG로 저장';
