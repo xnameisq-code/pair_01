@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lavishly+Yours&family=Playwrite+England+SemiJoined&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Gowun+Dodum&family=Noto+Serif+KR&family=Hahmlet:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.4.1/dom-to-image-more.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/modern-screenshot@4.4.39/dist/index.global.js"></script>
 <style>
   :root {
     --bg-color: #c8d8f0;
@@ -1701,15 +1701,11 @@ async function saveAsImage() {
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   try {
-    const dataUrl = await domtoimage.toPng(canvasEl, {
+    const dataUrl = await modernScreenshot.domToPng(canvasEl, {
       width: 1800,
       height: 1200,
-      style: {
-        transform: 'none',
-        transformOrigin: 'top left',
-      },
-      bgcolor: null,
-      cacheBust: true,
+      scale: 1,
+      backgroundColor: null,
     });
 
     const link = document.createElement('a');
