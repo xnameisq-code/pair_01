@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lavishly+Yours&family=Playwrite+England+SemiJoined&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Gowun+Dodum&family=Noto+Serif+KR&family=Hahmlet:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/modern-screenshot@4.4.39/dist/index.global.js"></script>
 <style>
   :root {
     --bg-color: #c8d8f0;
@@ -1662,7 +1661,6 @@ function removeLastMsgBubble() {
 }
 async function saveAsImage() {
   const btn = document.getElementById('save-btn');
-  const original = btn.textContent;
   btn.textContent = '⏳ 저장 중...';
   btn.disabled = true;
 
@@ -1671,20 +1669,21 @@ async function saveAsImage() {
   const canvasEl  = document.getElementById('canvas-area');
   const scaleWrap = document.getElementById('canvas-scale-wrap');
   const previewWr = document.getElementById('preview-wrapper');
+  const W = 1800, H = 1200;
 
-  // ── 1) scale transform 임시 해제 (1800×1200 원본 크기로 펼치기) ──
-  const prevTransform  = scaleWrap.style.transform;
-  const prevOrigin     = scaleWrap.style.transformOrigin;
-  const prevMinH       = previewWr.style.minHeight;
+  // ── 1) scale 해제 ──
+  const prevTransform = scaleWrap.style.transform;
+  const prevOrigin    = scaleWrap.style.transformOrigin;
+  const prevMinH      = previewWr.style.minHeight;
   scaleWrap.style.transform       = 'none';
   scaleWrap.style.transformOrigin = 'top left';
-  previewWr.style.minHeight       = '1200px';
+  previewWr.style.minHeight       = H + 'px';
 
-  // ── 2) contenteditable 임시 해제 ──
+  // ── 2) contenteditable 해제 ──
   const editables = canvasEl.querySelectorAll('[contenteditable]');
   editables.forEach(el => el.removeAttribute('contenteditable'));
 
-  // ── 3) UI 전용 요소 숨기기 ──
+  // ── 3) UI 요소 숨기기 + is-saving 클래스 ──
   const hideSelectors = ['.char-size-slider','#pair-img-size-slider','.upload-placeholder','.item-del-btn'];
   const hiddenEls = [];
   hideSelectors.forEach(sel => {
@@ -1693,30 +1692,115 @@ async function saveAsImage() {
       el.style.display = 'none';
     });
   });
-
-  // ── 4) hover 배경 제거용 클래스 추가 ──
   canvasEl.classList.add('is-saving');
 
-  // ── 5) 두 프레임 대기 ──
+  // ── 4) 두 프레임 대기 ──
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   try {
-    const dataUrl = await modernScreenshot.domToPng(canvasEl, {
-      width: 1800,
-      height: 1200,
-      scale: 1,
-      backgroundColor: null,
+    // ── 5) 현재 적용된 스타일시트 전부 수집 ──
+    let cssText = '';
+    for (const sheet of document.styleSheets) {
+      try {
+        for (const rule of sheet.cssRules) cssText += rule.cssText + '\n';
+      } catch(e) {}
+    }
+
+    // ── 6) DOM 클론 ──
+    const clone = canvasEl.cloneNode(true);
+    clone.style.transform = 'none';
+    clone.style.width  = W + 'px';
+    clone.style.height = H + 'px';
+    clone.style.borderRadius = '0';
+    clone.style.boxShadow = 'none';
+    clone.style.overflow = 'hidden';
+
+    // ── 7) 업로드 이미지들을 blob URL → dataURL로 교체 (CORS 우회) ──
+    const imgs = clone.querySelectorAll('img');
+    await Promise.all([...imgs].map(async img => {
+      if (!img.src) return;
+      try {
+        const res  = await fetch(img.src);
+        const blob = await res.blob();
+        await new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onload = e => { img.src = e.target.result; resolve(); };
+          reader.readAsDataURL(blob);
+        });
+      } catch(e) {}
+    }));
+
+    // ── 8) 배경 이미지도 dataURL 교체 ──
+    const bgLayer = clone.querySelector('#bg-img-layer');
+    if (bgLayer) {
+      const bgImg = bgLayer.style.backgroundImage;
+      const urlMatch = bgImg.match(/url\(["']?(.+?)["']?\)/);
+      if (urlMatch) {
+        try {
+          const res  = await fetch(urlMatch[1]);
+          const blob = await res.blob();
+          await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = e => {
+              bgLayer.style.backgroundImage = `url('${e.target.result}')`;
+              resolve();
+            };
+            reader.readAsDataURL(blob);
+          });
+        } catch(e) {}
+      }
+    }
+
+    // ── 9) SVG foreignObject 생성 ──
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('xmlns', svgNS);
+    svg.setAttribute('width',  W);
+    svg.setAttribute('height', H);
+
+    // 스타일 삽입
+    const styleEl = document.createElementNS(svgNS, 'style');
+    styleEl.textContent = cssText;
+    svg.appendChild(styleEl);
+
+    const fo = document.createElementNS(svgNS, 'foreignObject');
+    fo.setAttribute('x', '0');
+    fo.setAttribute('y', '0');
+    fo.setAttribute('width',  W);
+    fo.setAttribute('height', H);
+    fo.appendChild(clone);
+    svg.appendChild(fo);
+
+    const svgStr  = new XMLSerializer().serializeToString(svg);
+    const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const svgUrl  = URL.createObjectURL(svgBlob);
+
+    // ── 10) SVG → Canvas → PNG ──
+    await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const c   = document.createElement('canvas');
+        c.width   = W;
+        c.height  = H;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, W, H);
+        URL.revokeObjectURL(svgUrl);
+
+        const link = document.createElement('a');
+        link.download = '페어틀_' + new Date().toISOString().slice(0,10) + '.png';
+        link.href = c.toDataURL('image/png');
+        link.click();
+        resolve();
+      };
+      img.onerror = reject;
+      img.src = svgUrl;
     });
 
-    const link = document.createElement('a');
-    link.download = '페어틀_' + new Date().toISOString().slice(0,10) + '.png';
-    link.href = dataUrl;
-    link.click();
   } catch (err) {
     alert('저장 중 오류가 발생했습니다.\n' + err);
     console.error(err);
   } finally {
-    // ── 6) 전부 복원 ──
+    // ── 11) 전부 복원 ──
     scaleWrap.style.transform       = prevTransform;
     scaleWrap.style.transformOrigin = prevOrigin;
     previewWr.style.minHeight       = prevMinH;
@@ -1724,7 +1808,7 @@ async function saveAsImage() {
     hiddenEls.forEach(({ el, prev }) => { el.style.display = prev; });
     canvasEl.classList.remove('is-saving');
 
-    btn.textContent = original;
+    btn.textContent = '💾 PNG로 저장';
     btn.disabled = false;
   }
 }
