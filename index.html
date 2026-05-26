@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lavishly+Yours&family=Playwrite+England+SemiJoined&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Gowun+Dodum&family=Noto+Serif+KR&family=Hahmlet:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.4.1/dom-to-image-more.min.js"></script>
 <style>
   :root {
     --bg-color: #c8d8f0;
@@ -272,6 +272,24 @@
   [contenteditable] { outline: none; }
   [contenteditable]:hover { background: transparent; }
   [contenteditable]:focus { background: rgba(255,255,255,0.4); }
+
+  /* 저장 중일 때 모든 hover/focus 배경·테두리 완전 제거 */
+  #canvas-area.is-saving [contenteditable],
+  #canvas-area.is-saving [contenteditable]:hover,
+  #canvas-area.is-saving [contenteditable]:focus,
+  #canvas-area.is-saving .item-content,
+  #canvas-area.is-saving #title-text,
+  #canvas-area.is-saving #dday-display,
+  #canvas-area.is-saving #hashtag-area,
+  #canvas-area.is-saving .name-input {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  #canvas-area.is-saving .left-bubble  { background: #5b9bd5 !important; }
+  #canvas-area.is-saving .right-bubble { background: #e0e0e0 !important; }
+  #canvas-area.is-saving .heart-icon::after { display: none !important; }
 
   /* ===== 3열 레이아웃 ===== */
   .three-col {
@@ -1652,59 +1670,21 @@ async function saveAsImage() {
 
   const canvasEl  = document.getElementById('canvas-area');
   const scaleWrap = document.getElementById('canvas-scale-wrap');
-  const prevWrap  = document.getElementById('preview-wrapper');
+  const previewWr = document.getElementById('preview-wrapper');
 
-  // ── 1) scale transform 임시 해제 → 1800×1200 원본 크기로 복원 ──
-  const prevTransform = scaleWrap.style.transform;
-  const prevOrigin    = scaleWrap.style.transformOrigin;
-  const prevMinH      = prevWrap.style.minHeight;
+  // ── 1) scale transform 임시 해제 (1800×1200 원본 크기로 펼치기) ──
+  const prevTransform  = scaleWrap.style.transform;
+  const prevOrigin     = scaleWrap.style.transformOrigin;
+  const prevMinH       = previewWr.style.minHeight;
   scaleWrap.style.transform       = 'none';
   scaleWrap.style.transformOrigin = 'top left';
-  prevWrap.style.minHeight        = '1200px';
+  previewWr.style.minHeight       = '1200px';
 
-  // ── 2) contenteditable 전부 임시 해제 ──
+  // ── 2) contenteditable 임시 해제 ──
   const editables = canvasEl.querySelectorAll('[contenteditable]');
   editables.forEach(el => el.removeAttribute('contenteditable'));
 
-  // ── 3) hover/focus 배경·테두리 완전 투명 처리 CSS 주입 ──
-  const saveStyle = document.createElement('style');
-  saveStyle.id = '__save_style__';
-  saveStyle.textContent = `
-// ── 3) hover/focus 배경·테두리 완전 투명 처리 CSS 주입 ──
-  const saveStyle = document.createElement('style');
-  saveStyle.id = '__save_style__';
-  saveStyle.textContent = `
-    /* 기존 hover/focus 스타일 제거 */
-    #canvas-area .item-content,
-    #canvas-area .item-content:hover,
-    #canvas-area #title-text:hover,
-    #canvas-area #dday-display:hover,
-    #canvas-area #hashtag-area:hover,
-    #canvas-area .name-input:hover {
-      background: transparent !important;
-      border: none !important;
-      outline: none !important;
-      box-shadow: none !important;
-    }
-    
-    /* 🔥 핵심: 복붙으로 딸려온 하위 태그(span 등)의 배경색 강제 투명화 🔥 */
-    #canvas-area #title-text *,
-    #canvas-area #dday-display *,
-    #canvas-area #hashtag-area *,
-    #canvas-area .name-input *,
-    #canvas-area .item-content *,
-    #canvas-area .item-tag *,
-    #canvas-area .msg-bubble * {
-      background-color: transparent !important;
-    }
-
-    /* 말풍선 본래 색상은 유지 */
-    #canvas-area .left-bubble  { background: #5b9bd5 !important; }
-    #canvas-area .right-bubble { background: #e0e0e0 !important; }
-    #canvas-area .heart-icon::after { display: none !important; }
-  `;
-
-  // ── 4) UI 전용 요소 숨기기 ──
+  // ── 3) UI 전용 요소 숨기기 ──
   const hideSelectors = ['.char-size-slider','#pair-img-size-slider','.upload-placeholder','.item-del-btn'];
   const hiddenEls = [];
   hideSelectors.forEach(sel => {
@@ -1714,46 +1694,39 @@ async function saveAsImage() {
     });
   });
 
-  // ── 5) 레이아웃 반영 대기 ──
+  // ── 4) hover 배경 제거용 클래스 추가 ──
+  canvasEl.classList.add('is-saving');
+
+  // ── 5) 두 프레임 대기 ──
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   try {
-    const result = await html2canvas(canvasEl, {
-      scale: 1,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: null,
-      logging: false,
-      x: 0,
-      y: 0,
+    const dataUrl = await domtoimage.toPng(canvasEl, {
       width: 1800,
       height: 1200,
-      scrollX: 0,
-      scrollY: 0,
+      style: {
+        transform: 'none',
+        transformOrigin: 'top left',
+      },
+      bgcolor: null,
+      cacheBust: true,
     });
-
-    // 정확히 1800×1200으로 크롭
-    const out = document.createElement('canvas');
-    out.width  = 1800;
-    out.height = 1200;
-    out.getContext('2d').drawImage(result, 0, 0, 1800, 1200, 0, 0, 1800, 1200);
 
     const link = document.createElement('a');
     link.download = '페어틀_' + new Date().toISOString().slice(0,10) + '.png';
-    link.href = out.toDataURL('image/png');
+    link.href = dataUrl;
     link.click();
   } catch (err) {
-    alert('저장 중 오류가 발생했습니다.');
+    alert('저장 중 오류가 발생했습니다.\n' + err);
     console.error(err);
   } finally {
     // ── 6) 전부 복원 ──
     scaleWrap.style.transform       = prevTransform;
     scaleWrap.style.transformOrigin = prevOrigin;
-    prevWrap.style.minHeight        = prevMinH;
+    previewWr.style.minHeight       = prevMinH;
     editables.forEach(el => el.setAttribute('contenteditable', 'true'));
     hiddenEls.forEach(({ el, prev }) => { el.style.display = prev; });
-    const s = document.getElementById('__save_style__');
-    if (s) s.remove();
+    canvasEl.classList.remove('is-saving');
 
     btn.textContent = original;
     btn.disabled = false;
@@ -1785,14 +1758,6 @@ document.addEventListener('click', e => {
       !toggle.contains(e.target) &&
       !document.getElementById('emoji-popup').contains(e.target)) {
     panel.classList.remove('open');
-  }
-});
-// ===== 붙여넣기 시 서식(배경색 등) 제거하고 순수 텍스트만 입력 =====
-document.addEventListener('paste', function(e) {
-  if (e.target && e.target.isContentEditable) {
-    e.preventDefault();
-    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
-    document.execCommand('insertText', false, text);
   }
 });
 </script>
