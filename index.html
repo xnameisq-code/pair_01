@@ -1694,7 +1694,13 @@ async function saveAsImage() {
     });
   });
 
-  // ── 4) html2canvas가 잘못 렌더하는 속성들 인라인으로 제거 ──
+  // ── 4) canvas-area 자체의 border-radius·box-shadow 제거 (레이어 흔적 원인) ──
+  const prevCanvasBR = canvasEl.style.borderRadius;
+  const prevCanvasBS = canvasEl.style.boxShadow;
+  canvasEl.style.borderRadius = '0';
+  canvasEl.style.boxShadow    = 'none';
+
+  // ── 5) html2canvas가 잘못 렌더하는 속성들 인라인으로 제거 ──
   //    box-shadow, border 투명값이 레이어 흔적 원인
   const fixTargets = canvasEl.querySelectorAll(
     '.info-box, .item-content, #title-text, #dday-display, #hashtag-area, .name-input, .msg-bubble, .messenger-area, .pair-img-frame, .char-circle'
@@ -1756,6 +1762,8 @@ async function saveAsImage() {
     console.error(err);
   } finally {
     // ── 6) 전부 복원 ──
+    canvasEl.style.borderRadius = prevCanvasBR;
+    canvasEl.style.boxShadow    = prevCanvasBS;
     scaleWrap.style.transform       = prevTransform;
     scaleWrap.style.transformOrigin = prevOrigin;
     previewWr.style.minHeight       = prevMinH;
